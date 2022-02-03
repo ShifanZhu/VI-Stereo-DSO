@@ -385,15 +385,20 @@ void Undistort::loadPhotometricCalibration(std::string file, std::string noiseIm
 template<typename T>
 ImageAndExposure* Undistort::undistort(const MinimalImage<T>* image_raw, float exposure, double timestamp, float factor) const
 {
+std::cout << "8.1.0" << std::endl;
+std::cout << "8.1.0 " << image_raw->w << std::endl;
+std::cout << "wh = " << image_raw->w << " " << wOrg << " " << image_raw->h << " " << hOrg << std::endl;
 	if(image_raw->w != wOrg || image_raw->h != hOrg)
 	{
 		printf("Undistort::undistort: wrong image size (%d %d instead of %d %d) \n", image_raw->w, image_raw->h, w, h);
 		exit(1);
 	}
+std::cout << "8.1.1" << std::endl;
 
 	photometricUndist->processFrame<T>(image_raw->data, exposure, factor);
 	ImageAndExposure* result = new ImageAndExposure(w, h, timestamp);
 	photometricUndist->output->copyMetaTo(*result);
+std::cout << "8.1.2" << std::endl;
 
 	if (!passthrough)
 	{
@@ -416,6 +421,7 @@ ImageAndExposure* Undistort::undistort(const MinimalImage<T>* image_raw, float e
 				noiseMapY[i] =  2*benchmark_varNoise * (rand()/(float)RAND_MAX - 0.5f);
 			}
 		}
+std::cout << "8.1.3" << std::endl;
 
 
 		for(int idx = w*h-1;idx>=0;idx--)
@@ -463,6 +469,7 @@ ImageAndExposure* Undistort::undistort(const MinimalImage<T>* image_raw, float e
 									+ (1-xx-yy+xxyy) * src[0];
 			}
 		}
+std::cout << "8.1.4" << std::endl;
 
 		if(benchmark_varNoise>0)
 		{
@@ -473,10 +480,13 @@ ImageAndExposure* Undistort::undistort(const MinimalImage<T>* image_raw, float e
 	}
 	else
 	{
+std::cout << "8.1.5" << std::endl;
 		memcpy(result->image, photometricUndist->output->image, sizeof(float)*w*h);
 	}
+std::cout << "8.1.6" << std::endl;
 
 	applyBlurNoise(result->image);
+std::cout << "8.1.7" << std::endl;
 
 	return result;
 }
