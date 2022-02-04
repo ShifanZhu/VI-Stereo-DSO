@@ -246,6 +246,7 @@ void AccumulatedTopHessianSSE::stitchDoubleInternal(
 	if(tid == -1) { toAggregate = 1; tid = 0; }	// special case: if we dont do multithreading, dont aggregate.
 	if(min==max) return;
 
+	LOG(INFO)<<"H2.1.1.1: \n"<<H->diagonal().transpose();
 
 	for(int k=min;k<max;k++)
 	{
@@ -266,18 +267,27 @@ void AccumulatedTopHessianSSE::stitchDoubleInternal(
 			if(acc[tid2][aidx].num==0) continue;
 			accH += acc[tid2][aidx].H.cast<double>();
 		}
+	LOG(INFO)<<"accH.block<8,8>(CPARS,CPARS): \n"<<accH.block<8,8>(CPARS,CPARS);
+	LOG(INFO)<<"EF->adHost[aidx].transpose(): \n"<<EF->adHost[aidx].transpose();
+	LOG(INFO)<<"EF->adTarget[aidx].transpose(): \n"<<EF->adTarget[aidx].transpose();
 
 		H[tid].block<8,8>(hIdx, hIdx).noalias() += EF->adHost[aidx] * accH.block<8,8>(CPARS,CPARS) * EF->adHost[aidx].transpose();
+	LOG(INFO)<<"H2.1.1.2: \n"<<H->diagonal().transpose();
 
 		H[tid].block<8,8>(tIdx, tIdx).noalias() += EF->adTarget[aidx] * accH.block<8,8>(CPARS,CPARS) * EF->adTarget[aidx].transpose();
+	LOG(INFO)<<"H2.1.1.3: \n"<<H->diagonal().transpose();
 
 		H[tid].block<8,8>(hIdx, tIdx).noalias() += EF->adHost[aidx] * accH.block<8,8>(CPARS,CPARS) * EF->adTarget[aidx].transpose();
+	LOG(INFO)<<"H2.1.1.4: \n"<<H->diagonal().transpose();
 
 		H[tid].block<8,CPARS>(hIdx,0).noalias() += EF->adHost[aidx] * accH.block<8,CPARS>(CPARS,0);
+	LOG(INFO)<<"H2.1.1.5: \n"<<H->diagonal().transpose();
 
 		H[tid].block<8,CPARS>(tIdx,0).noalias() += EF->adTarget[aidx] * accH.block<8,CPARS>(CPARS,0);
+	LOG(INFO)<<"H2.1.1.6: \n"<<H->diagonal().transpose();
 
 		H[tid].topLeftCorner<CPARS,CPARS>().noalias() += accH.block<CPARS,CPARS>(0,0);
+	LOG(INFO)<<"H2.1.1.7: \n"<<H->diagonal().transpose();
 
 		b[tid].segment<8>(hIdx).noalias() += EF->adHost[aidx] * accH.block<8,1>(CPARS,CPARS+8);
 

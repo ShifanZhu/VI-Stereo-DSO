@@ -221,6 +221,7 @@ struct FrameHessian
 	{
 
 		this->worldToCam_evalPT = worldToCam_evalPT;
+	// LOG(INFO)<<"worldToCam_evalPT not scale: \n"<<worldToCam_evalPT.matrix();
 		setState(state);
 		setStateZero(state);
 	};
@@ -233,6 +234,7 @@ struct FrameHessian
 		initial_state[6] = aff_g2l.a;
 		initial_state[7] = aff_g2l.b;
 		this->worldToCam_evalPT = worldToCam_evalPT;
+	// LOG(INFO)<<"worldToCam_evalPT _scaled: \n"<<worldToCam_evalPT.matrix();
 		setStateScaled(initial_state);
 		setStateZero(this->get_state());
 	};

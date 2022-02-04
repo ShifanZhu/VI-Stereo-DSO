@@ -400,19 +400,25 @@ void EnergyFunctional::setAdjointsF(CalibHessian* Hcalib)
 			FrameHessian* target = frames[t]->data;
 
 			SE3 hostToTarget = target->get_worldToCam_evalPT() * host->get_worldToCam_evalPT().inverse();
+	LOG(INFO)<<"hostToTarget: \n"<<hostToTarget.matrix();
+	LOG(INFO)<<"target->get_worldToCam_evalPT(): \n"<<target->get_worldToCam_evalPT().matrix();
+	LOG(INFO)<<"host->get_worldToCam_evalPT().inverse(): \n"<<host->get_worldToCam_evalPT().inverse().matrix();
 
 			Mat88 AH = Mat88::Identity();
 			Mat88 AT = Mat88::Identity();
+	LOG(INFO)<<"AH1: \n"<<AH;
 
 			AH.topLeftCorner<6,6>() = -hostToTarget.Adj().transpose();
 			AT.topLeftCorner<6,6>() = Mat66::Identity();
 
+	LOG(INFO)<<"AH2: \n"<<AH;
 
 			Vec2f affLL = AffLight::fromToVecExposure(host->ab_exposure, target->ab_exposure, host->aff_g2l_0(), target->aff_g2l_0()).cast<float>();
 			AT(6,6) = -affLL[0];
 			AH(6,6) = affLL[0];
 			AT(7,7) = -1;
 			AH(7,7) = affLL[0];
+	LOG(INFO)<<"AH3: \n"<<AH;
 
 			AH.block<3,8>(0,0) *= SCALE_XI_TRANS;
 			AH.block<3,8>(3,0) *= SCALE_XI_ROT;
@@ -422,8 +428,10 @@ void EnergyFunctional::setAdjointsF(CalibHessian* Hcalib)
 			AT.block<3,8>(3,0) *= SCALE_XI_ROT;
 			AT.block<1,8>(6,0) *= SCALE_A;
 			AT.block<1,8>(7,0) *= SCALE_B;
+	LOG(INFO)<<"AH4: \n"<<AH;
 
 			adHost[h+t*nFrames] = AH;
+	LOG(INFO)<<"adHost[h+t*nFrames]:::::: \n"<<adHost[h+t*nFrames];
 			adTarget[h+t*nFrames] = AT;
 		}
 	cPrior = VecC::Constant(setting_initialCalibHessian);
@@ -575,6 +583,7 @@ void EnergyFunctional::accumulateLF_MT(MatXX &H, VecX &b, bool MT)
 		red->reduce(boost::bind(&AccumulatedTopHessianSSE::addPointsInternal<1>,
 				accSSE_top_L, &allPoints, this,  _1, _2, _3, _4), 0, allPoints.size(), 50);
 		accSSE_top_L->stitchDoubleMT(red,H,b,this,true,true);
+	// LOG(INFO)<<"H4: \n"<<H.diagonal().transpose();
 		resInL = accSSE_top_L->nres[0];
 	}
 	else
@@ -667,6 +676,9 @@ void EnergyFunctional::resubstituteFPt(
 		p->data->step = - b*p->HdiF;
 		if(std::isfinite(p->data->step)==false){
 		    LOG(INFO)<<"b: "<<b;
+		    LOG(INFO)<<"p->bdSumF: "<<p->bdSumF;
+		    LOG(INFO)<<"p->Hcd_accAF: "<<p->Hcd_accAF;
+		    LOG(INFO)<<"p->Hcd_accLF: "<<p->Hcd_accLF;
 		    LOG(INFO)<<"p->HdiF: "<<p->HdiF;
 		    LOG(INFO)<<"p->bdSumF: "<<p->bdSumF;
 		    LOG(INFO)<<"xc: "<<xc.transpose();
@@ -1759,16 +1771,21 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 
 	MatXX HL_top, HA_top, H_sc;
 	VecX  bL_top, bA_top, bM_top, b_sc;
+	LOG(INFO)<<"step_twd:3.2.1 "<<step_twd.transpose();
 
 	accumulateAF_MT(HA_top, bA_top,multiThreading);
+	LOG(INFO)<<"step_twd:3.2.2 "<<step_twd.transpose();
 
 
 	accumulateLF_MT(HL_top, bL_top,multiThreading);
+	LOG(INFO)<<"HL_top: \n"<<HL_top.diagonal().transpose();
 
+	LOG(INFO)<<"step_twd:3.2.3 "<<step_twd.transpose();
 
 
 	accumulateSCF_MT(H_sc, b_sc,multiThreading);
 
+	LOG(INFO)<<"step_twd:3.2.4 "<<step_twd.transpose();
 
 	bM_top = (bM+ HM * getStitchedDeltaF());
 	
@@ -1785,12 +1802,15 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 // 	    StitchedDelta2.block(CPARS+7+17*i,0,6,1) = temp.block(0,0,6,1);
 // 	}
 	StitchedDelta2.block(CPARS,0,7,1) = state_twd;
+	LOG(INFO)<<"step_twd:3.2.5 "<<step_twd.transpose();
 	
 	VecX bM_top_imu = (bM_imu + HM_imu*StitchedDelta2); 
 
 	MatXX H_imu;
 	VecX b_imu;
 	getIMUHessian(H_imu,b_imu);
+	LOG(INFO)<<"H_imu: \n"<<H_imu.diagonal().transpose();
+	LOG(INFO)<<"step_twd:3.2.6 "<<step_twd.transpose();
 
 
 
@@ -1803,8 +1823,12 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 		bool haveFirstFrame = false;
 		for(EFFrame* f : frames) if(f->frameID==0) haveFirstFrame=true;
 
+	LOG(INFO)<<"step_twd:3.2.7 "<<step_twd.transpose();
 
 
+	LOG(INFO)<<"HL_top: \n"<<HL_top.diagonal().transpose();
+	LOG(INFO)<<"HA_top: \n"<<HA_top.diagonal().transpose();
+	LOG(INFO)<<"H_sc: \n"<<H_sc.diagonal().transpose();
 
 		MatXX HT_act =  HL_top + HA_top - H_sc;
 		VecX bT_act =   bL_top + bA_top - b_sc;
@@ -1812,12 +1836,15 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 
 		if(!haveFirstFrame)
 			orthogonalize(&bT_act, &HT_act);
+	LOG(INFO)<<"HT_act: \n"<<HT_act.diagonal().transpose();
+	LOG(INFO)<<"HM: \n"<<HM.diagonal().transpose();
 
 		HFinal_top = HT_act + HM;
 		bFinal_top = bT_act + bM_top;
 
 
 
+	LOG(INFO)<<"step_twd:3.2.8 "<<step_twd.transpose();
 
 
 		lastHS = HFinal_top;
@@ -1829,6 +1856,10 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 	else
 	{
 
+	LOG(INFO)<<"step_twd:3.2.9 "<<step_twd.transpose();
+	LOG(INFO)<<"HL_top: \n"<<HL_top.diagonal().transpose();
+	LOG(INFO)<<"HM: \n"<<HM.diagonal().transpose();
+	LOG(INFO)<<"HA_top: \n"<<HA_top.diagonal().transpose();
 
 		HFinal_top = HL_top + HM + HA_top;
 		bFinal_top = bL_top + bM_top + bA_top - b_sc;
@@ -1840,24 +1871,33 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 		HFinal_top -= H_sc * (1.0f/(1+lambda));
 	}
 	
+	LOG(INFO)<<"HFinal_top: \n"<<HFinal_top.diagonal().transpose();
 // 	HFinal_top = MatXX::Zero(CPARS+8*nFrames,CPARS+8*nFrames);
 // 	bFinal_top = VecX::Zero(CPARS+8*nFrames);
 	
+	LOG(INFO)<<"H_imu0: \n"<<H_imu.diagonal().transpose();
 	H_imu.block(3,3,3,3) += setting_initialIMUHessian * Mat33::Identity();
 	H_imu(6,6) += setting_initialScaleHessian;
+	LOG(INFO)<<"H_imu1: \n"<<H_imu.diagonal().transpose();
 	for(int i=0;i<nFrames;++i){
 	    H_imu.block(7+15*i+9,7+15*i+9,3,3) += setting_initialbgHessian * Mat33::Identity();
 	    H_imu.block(7+15*i+12,7+15*i+12,3,3) += setting_initialbaHessian * Mat33::Identity();
 	}
+	LOG(INFO)<<"H_imu2: \n"<<H_imu.diagonal().transpose();
 	for(int i=0;i<7+15*nFrames;i++)H_imu(i,i)*= (1+lambda);
+	LOG(INFO)<<"H_imu3: \n"<<H_imu.diagonal().transpose();
+	LOG(INFO)<<"step_twd:3.2.10 "<<step_twd.transpose();
 
 		//imu_term
 	MatXX HFinal_top2 =  MatXX::Zero(CPARS+7+17*nFrames,CPARS+7+17*nFrames);//Cam,Twd,pose,a,b,v,bg,ba
 	VecX bFinal_top2 = VecX::Zero(CPARS+7+17*nFrames);
+		    LOG(INFO)<<"bFinal_top2.transpose() 1: \n"<<bFinal_top2.transpose();
 	HFinal_top2.block(0,0,CPARS,CPARS) = HFinal_top.block(0,0,CPARS,CPARS);
 	HFinal_top2.block(CPARS,CPARS,7,7) = H_imu.block(0,0,7,7);
 	bFinal_top2.block(0,0,CPARS,1) = bFinal_top.block(0,0,CPARS,1);
 	bFinal_top2.block(CPARS,0,7,1) = b_imu.block(0,0,7,1);
+		    LOG(INFO)<<"bFinal_top2.transpose() 2: \n"<<bFinal_top2.transpose();
+	LOG(INFO)<<"H_imu4: \n"<<H_imu.diagonal().transpose();
 	for(int i=0;i<nFrames;++i){
 	    //cam
 	    HFinal_top2.block(0,CPARS+7+i*17,CPARS,8) += HFinal_top.block(0,CPARS+i*8,CPARS,8);
@@ -1899,9 +1939,12 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 	    bFinal_top2.block(CPARS+7+17*i,0,6,1) += b_imu.block(7+15*i,0,6,1);
 	    bFinal_top2.block(CPARS+7+17*i+8,0,9,1) += b_imu.block(7+15*i+6,0,9,1);
 	}
+	LOG(INFO)<<"step_twd:3.2.11 "<<step_twd.transpose();
+		    LOG(INFO)<<"bFinal_top2.transpose() 3: \n"<<bFinal_top2.transpose();
 	HFinal_top2 += (HM_imu + HM_bias);
 // 	bFinal_top2 += (bM_imu + bM_bias);
 	bFinal_top2 += (bM_top_imu + bM_bias);
+		    LOG(INFO)<<"bFinal_top2.transpose() 4: \n"<<bFinal_top2.transpose();
 	VecX x = VecX::Zero(CPARS+8*nFrames);
 	VecX x2= VecX::Zero(CPARS+7+17*nFrames);
 	VecX x3= VecX::Zero(CPARS+7+17*nFrames);
@@ -1934,9 +1977,11 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 		}
 		x = SVecI.asDiagonal() * svd.matrixV() * Ub;
 
+	LOG(INFO)<<"step_twd:3.2.12 "<<step_twd.transpose();
 	}
 	else
 	{
+	LOG(INFO)<<"step_twd:3.2.13 "<<step_twd.transpose();
 		if(!imu_use_flag){
 		    VecX SVecI = (HFinal_top.diagonal()+VecX::Constant(HFinal_top.cols(), 10)).cwiseSqrt().cwiseInverse();
 		    MatXX HFinalScaled = SVecI.asDiagonal() * HFinal_top * SVecI.asDiagonal();
@@ -1946,9 +1991,13 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 		    VecX SVecI = (HFinal_top2.diagonal()+VecX::Constant(HFinal_top2.cols(), 10)).cwiseSqrt().cwiseInverse();
 		    MatXX HFinalScaled = SVecI.asDiagonal() * HFinal_top2 * SVecI.asDiagonal();
 		    x2 = SVecI.asDiagonal() * HFinalScaled.ldlt().solve(SVecI.asDiagonal() * bFinal_top2);//  SVec.asDiagonal() * svd.matrixV() * Ub;
-// 		    LOG(INFO)<<"HFinal_top2: \n"<<HFinal_top2;
-// 		    LOG(INFO)<<"bFinal_top2: "<<bFinal_top2.transpose();
-// 		    LOG(INFO)<<"x2: "<<x2.transpose();
+		    LOG(INFO)<<"SVecI: \n"<<SVecI.transpose();
+		    LOG(INFO)<<"HFinalScaled: \n"<<HFinalScaled;
+			LOG(INFO)<<"HFinalScaled.ldlt().solve(SVecI.asDiagonal() * bFinal_top2): \n"<<(HFinalScaled.ldlt().solve(SVecI.asDiagonal() * bFinal_top2)).transpose();
+		    LOG(INFO)<<"SVecI.asDiagonal() * bFinal_top2 : \n"<<(SVecI.asDiagonal() * bFinal_top2).transpose();
+		    LOG(INFO)<<"HFinal_top2: \n"<<HFinal_top2.diagonal().transpose();
+		    LOG(INFO)<<"bFinal_top2: "<<bFinal_top2.transpose();
+		    LOG(INFO)<<"x2: "<<x2.transpose();
 // 		    exit(1);
 		    x.block(0,0,CPARS,1) = x2.block(0,0,CPARS,1);
 		    for(int i=0;i<nFrames;++i){
@@ -1958,7 +2007,7 @@ void EnergyFunctional::solveSystemF(int iteration, double lambda, CalibHessian* 
 // 			LOG(INFO)<<"frames[i]->data->step_imu: "<<frames[i]->data->step_imu.transpose();
 		    }
 		    step_twd = -x2.block(CPARS,0,7,1);
-// 		    LOG(INFO)<<"step_twd: "<<step_twd.transpose();
+		    LOG(INFO)<<"step_twd:3.2.14 "<<step_twd.transpose();
 		}
 	}
 

@@ -1036,8 +1036,10 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 	run_time = pic_time_stamp[id];
 	LOG(INFO)<<std::fixed<<std::setprecision(12)<<"run_time: "<<run_time;
 	if(isLost) return;
+	if(imu_time_stamp.size()<1) return;
 	boost::unique_lock<boost::mutex> lock(trackMutex);
 	
+	LOG(INFO)<<"T_WD.scale()=  "<<T_WD.scale();
 	if(use_stereo&&(T_WD.scale()>2||T_WD.scale()<0.6)){
 	    initFailed = true;
 	    first_track_flag = false;
@@ -1065,6 +1067,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 	shell->incoming_id = id;
 	fh->shell = shell;
 	fh_right->shell=shell;
+	std::cout << "1" << std::endl;
 
 
 	// =========================== make Images / derivatives etc. =========================
@@ -1073,6 +1076,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 	fh_right->ab_exposure = image_right->exposure_time;
 	fh_right->makeImages(image_right->image,&Hcalib);
 	fh->frame_right = fh_right;
+	std::cout << "2" << std::endl;
 	
 	if(allFrameHistory.size()>0){
 	    fh->velocity = fh->shell->velocity = allFrameHistory.back()->velocity;
@@ -1088,6 +1092,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 		// use initializer!
 		if(coarseInitializer->frameID<0&&use_stereo)	// first frame set. fh is kept by coarseInitializer.
 		{
+	LOG(INFO)<<"T_WD.scale()= stereo "<<T_WD.scale();
 			coarseInitializer->setFirstStereo(&Hcalib, fh,fh_right);
 // 			coarseInitializer->setFirst(&Hcalib, fh);
 			initFirstFrame_imu(fh);
@@ -1099,11 +1104,13 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 
 		}
 		else if(coarseInitializer->frameID<0){
+	LOG(INFO)<<"T_WD.scale()= mono "<<T_WD.scale();
 			coarseInitializer->setFirst(&Hcalib, fh);
 			initFirstFrame_imu(fh);
 		}
 		else if(coarseInitializer->trackFrame(fh, outputWrapper))	// if SNAPPED
 		{
+	LOG(INFO)<<"T_WD.scale()= SNAPPED "<<T_WD.scale();
 			initializeFromInitializer(fh);
 			lock.unlock();
 			deliverTrackedFrame(fh, fh_right, true);
@@ -1135,6 +1142,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 			coarseTracker=coarseTracker_forNewKF; 
 			coarseTracker_forNewKF=tmp;
 		}
+	// LOG(INFO)<<"T_WD.scale()= front 0 "<<T_WD.scale();
 		
 // 		if(allFrameHistory.size() == 2){
 // 			initializeFromInitializer(fh);
@@ -1148,6 +1156,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 				isLost=true;
 		    return;
 		}
+	// LOG(INFO)<<"T_WD.scale()= front 1 "<<T_WD.scale();
 
 		bool needToMakeKF = false;
 		if(setting_keyframesPerSecond > 0)
@@ -1186,6 +1195,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 // 		LOG(INFO)<<"allFrameHistory.size(): "<<allFrameHistory.size();
 
 
+	// LOG(INFO)<<"T_WD.scale()= front 2 "<<T_WD.scale();
 
         for(IOWrap::Output3DWrapper* ow : outputWrapper)
             ow->publishCamPose(fh->shell, &Hcalib);
@@ -1200,25 +1210,34 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 // 		LOG(INFO)<<"fh->shell->camToTrackingRef: "<<fh->shell->camToTrackingRef.translation().transpose();
 // 		LOG(INFO)<<"fh->shell->trackingRef->camToWorld : "<<fh->shell->trackingRef->camToWorld.translation().transpose();
 // 		exit(1);
+	// LOG(INFO)<<"T_WD.scale()= front 3 "<<T_WD.scale();
 		
 // 		Sophus::Matrix4d T = shell->camToWorld.matrix();
 		Sophus::Matrix4d T = T_WD.matrix()*shell->camToWorld.matrix()*T_WD.inverse().matrix();
 		savetrajectory_tum(SE3(T),run_time);
 // 		savetrajectory(T);
 		
+	// LOG(INFO)<<"T_WD.scale()= front 4 "<<T_WD.scale();
 		return;
 	}
 }
 void FullSystem::initFirstFrame_imu(FrameHessian* fh){
+	// std::cout << "T_WD = initFirstFrame_imu 1 " << T_WD.scale() << std::endl;
+	// std::cout << "imu_time_stamp.size() " << imu_time_stamp.size() << std::endl;
 	int index;
 	if(imu_time_stamp.size()>0){
 	    for(int i=0;i<imu_time_stamp.size();++i){
 		if(imu_time_stamp[i]>=pic_time_stamp[fh->shell->incoming_id]||fabs(imu_time_stamp[i]-pic_time_stamp[fh->shell->incoming_id])<0.001){
 		      index = i;
+			  std::cout << "i = " << i << std::endl;
 		      break;					  				
+		}
+		else{
+			index = i;
 		}
 	    }
 	}
+std::cout << "0" << std::endl;
 	int index2 = 0;
 	if(gt_time_stamp.size()>0){
 	    for(int i=0;i<gt_time_stamp.size();++i){
@@ -1228,26 +1247,41 @@ void FullSystem::initFirstFrame_imu(FrameHessian* fh){
 		}
 	    }
 	}
+	std::cout << "index = " << index << " " << m_acc.size() << std::endl;
 	Vec3 g_b = Vec3::Zero();
 	Vec3 g_w;
 	g_w<<0,0,-1;
-	for(int j=0;j<40;j++){
+	// for(int j=0;j<40;j++){ // 40 is a terriable idea!!
+	int acc_vec_size = m_acc.size();
+	int idx_tmp = std::min(acc_vec_size, 40);
+	for(int j=0;j<idx_tmp;j++){
 	    g_b = g_b + m_acc[index-j];
+	// std::cout << "g_b in " << g_b << " " << m_acc[index-j] << std::endl;
 	}
 	double norm = g_b.norm();
-	g_b = -g_b/norm;
+	g_b = -g_b/norm; // g_b must not be zero
 	Vec3 g_c = T_BC.inverse().rotationMatrix()*g_b;
-
+	// std::cout << "T_BC.inverse() " << T_BC.inverse().rotationMatrix() << std::endl;
+	// std::cout << "g_b " << g_b << std::endl;
+	// std::cout << "g_c " << g_c << std::endl;
+// std::cout << "1" << std::endl;
 	norm = g_c.norm();
-	g_c = g_c/norm;
+	g_c = g_c/norm; // g_c must not be zero
 	Vec3 n = Sophus::SO3::hat(g_c)*g_w;
+	std::cout << "n1 " << n << std::endl;
+	// std::cout << "Sophus::SO3::hat(g_c) " << Sophus::SO3::hat(g_c).matrix() << std::endl;
 
 	norm = n.norm();
 	n = n/norm;
 	double sin_theta = norm;
 	double cos_theta = g_c.dot(g_w);
+	// std::cout << "g_c " << g_c << std::endl;
+	// std::cout << "g_w " << g_w << std::endl;
 
 	Mat33 R_wc = cos_theta*Mat33::Identity()+(1-cos_theta)*n*n.transpose()+sin_theta*Sophus::SO3::hat(n);
+	// std::cout << "cos_theta " << cos_theta << std::endl;
+	// std::cout << "n2 " << n << std::endl;
+	// std::cout << "R_wc " << R_wc << std::endl;
 
 	SE3 T_wc(R_wc,Vec3::Zero());
 	if(gt_path.size() > 0)
@@ -1257,6 +1291,7 @@ void FullSystem::initFirstFrame_imu(FrameHessian* fh){
 	
 // 	LOG(INFO)<<"first pose: \n"<<T_wc.matrix();
 	fh->shell->camToWorld = T_wc;
+	// std::cout << "T_wc " << T_wc.matrix() << std::endl;
 	fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 
 	Mat33 R_wd = Mat33::Identity();
@@ -1265,6 +1300,7 @@ void FullSystem::initFirstFrame_imu(FrameHessian* fh){
 	T_WD_l = T_WD;
 	T_WD_l_half = T_WD;
 	state_twd.setZero();
+	std::cout << "T_WD = initFirstFrame_imu 2 " << T_WD.scale() << std::endl;
 }
 void FullSystem::savetrajectory(const Sophus::Matrix4d &T){
 	std::ofstream f1;
@@ -1335,6 +1371,7 @@ void FullSystem::deliverTrackedFrame(FrameHessian* fh, FrameHessian* fh_right, b
 		else handleKey( IOWrap::waitKey(1) );
 
 
+	// LOG(INFO)<<"T_WD.scale()= before makeKeyFrame "<<T_WD.scale();
 
 		if(needKF) makeKeyFrame(fh,fh_right);
 		else makeNonKeyFrame(fh,fh_right);
@@ -1401,6 +1438,7 @@ void FullSystem::mappingLoop()
 					boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 					assert(fh->shell->trackingRef != 0);
 					fh->shell->camToWorld = fh->shell->trackingRef->camToWorld * fh->shell->camToTrackingRef;
+	std::cout << "fh->shell->camToWorld 1" << fh->shell->camToWorld.matrix() << std::endl;
 					fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 				}
 				delete fh;
@@ -1446,6 +1484,7 @@ void FullSystem::makeNonKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 		boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 		assert(fh->shell->trackingRef != 0);
 		fh->shell->camToWorld = fh->shell->trackingRef->camToWorld * fh->shell->camToTrackingRef;
+	std::cout << "fh->shell->camToWorld 2" << fh->shell->camToWorld.matrix() << std::endl;
 		fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 	}
 	
@@ -1463,6 +1502,7 @@ void FullSystem::makeKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 		boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 		assert(fh->shell->trackingRef != 0);
 		fh->shell->camToWorld = fh->shell->trackingRef->camToWorld * fh->shell->camToTrackingRef;
+	// std::cout << "fh->shell->camToWorld 3" << fh->shell->camToWorld.matrix() << std::endl;
 		fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 	}
 // 	LOG(INFO)<<"make keyframe";
@@ -1521,8 +1561,9 @@ void FullSystem::makeKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 
 	fh->frameEnergyTH = frameHessians.back()->frameEnergyTH;
 // 	LOG(INFO)<<"optimize start";
+	// LOG(INFO)<<"T_WD.scale()= before optimize "<<T_WD.scale();
 	float rmse = optimize(setting_maxOptIterations);
-// 	LOG(INFO)<<"rmse: "<<rmse;
+	LOG(INFO)<<"rmse: "<<rmse;
 
 
 
@@ -1530,7 +1571,7 @@ void FullSystem::makeKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 	// =========================== Figure Out if INITIALIZATION FAILED =========================
 	if(allKeyFramesHistory.size() <= 4)
 	{
-// 		LOG(INFO)<<"allKeyFramesHistory.size(): "<<allKeyFramesHistory.size()<<" rmse: "<<rmse;
+		LOG(INFO)<<"allKeyFramesHistory.size(): "<<allKeyFramesHistory.size()<<" rmse: "<<rmse;
 		if(allKeyFramesHistory.size()==2 && rmse > 20*benchmark_initializerSlackFactor)
 		{
 			printf("I THINK INITIALIZATINO FAILED! Resetting.\n");
@@ -1629,6 +1670,7 @@ void FullSystem::makeKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 void FullSystem::initializeFromInitializer(FrameHessian* newFrame)
 {
 	boost::unique_lock<boost::mutex> lock(mapMutex);
+	// LOG(INFO)<<"T_WD.scale()= initializeFromInitializer 1 "<<T_WD.scale();
 
 	// add firstframe.
 	FrameHessian* firstFrame = coarseInitializer->firstFrame;
@@ -1791,6 +1833,7 @@ void FullSystem::initializeFromInitializer(FrameHessian* newFrame)
 
 	initialized=true;
 	printf("INITIALIZE FROM INITIALIZER (%d pts)!\n", (int)firstFrame->pointHessians.size());
+	// LOG(INFO)<<"T_WD.scale()= initializeFromInitializer 2 "<<T_WD.scale();
 // 	if((int)firstFrame->pointHessians.size()<600)initFailed=true;
 }
 

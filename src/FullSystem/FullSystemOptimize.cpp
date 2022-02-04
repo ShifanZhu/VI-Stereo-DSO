@@ -259,17 +259,20 @@ bool FullSystem::doStepFromBackup(float stepfacC,float stepfacT,float stepfacR,f
 	}
 	else if(use_optimize)
 	{
+		//   LOG(INFO)<<"T_WD.scale()1: "<<T_WD.scale();
 		Hcalib.setValue(Hcalib.value_backup + stepfacC*Hcalib.step);
 		T_WD_change  = Sim3::exp(Vec7::Zero());
 		if(imu_use_flag){
 // 		  T_WD = T_WD*change;
+		//   LOG(INFO)<<"stepfacC: "<<stepfacC;
+		//   LOG(INFO)<<"step_twd: "<<step_twd.transpose();
 		  state_twd += stepfacC*step_twd;
 		  if(std::exp(state_twd[6])<0.1||std::exp(state_twd[6])>10){
 		    initFailed = true;
 		    first_track_flag = false;
 		    return false;
 		  }
-// 		  LOG(INFO)<<"state_twd: "<<state_twd.transpose();
+		//   LOG(INFO)<<"state_twd: "<<state_twd.transpose();
 		  T_WD_change  = Sim3::exp(state_twd);
 
 // 		  Sim3 T_WD_temp = T_WD*T_WD_change;
@@ -279,13 +282,15 @@ bool FullSystem::doStepFromBackup(float stepfacC,float stepfacT,float stepfacR,f
 // 		  if(s_new>d_min)s_new = d_min;
 // 		  if(s_new<1/d_min)s_new = 1/d_min;
 // 		  T_WD = Sim3(RxSO3(s_new*s_wd,T_WD_temp.rotationMatrix()),Vec3::Zero());+
+		//   LOG(INFO)<<"T_WD_l.scale(): "<<T_WD_l.scale();
+		//   LOG(INFO)<<"T_WD_change.scale(): "<<T_WD_change.scale();
 		  T_WD = T_WD_l*T_WD_change;
 		  
 		  if(M_num2==0){
 		      T_WD_l = T_WD;
 		      state_twd.setZero();
 		  }
-// 		  LOG(INFO)<<"T_WD.scale(): "<<T_WD.scale();
+		//   LOG(INFO)<<"T_WD.scale()2: "<<T_WD.scale();
 // 		  LOG(INFO)<<"T_WD.translation(): "<<T_WD.translation().transpose();
 		  
 		}
@@ -458,6 +463,8 @@ float FullSystem::optimize(int mnumOptIts)
 
 
 
+	// LOG(INFO)<<"T_WD.scale()= in optimize 1 "<<T_WD.scale();
+	// LOG(INFO)<<"step_twd:1 "<<step_twd.transpose();
 
 	// get statistics and active residuals.
 // 	LOG(INFO)<<"frameHessians.size(): "<<frameHessians.size();
@@ -490,6 +497,8 @@ float FullSystem::optimize(int mnumOptIts)
 	double lastEnergyM = calcMEnergy();
 
 
+	// LOG(INFO)<<"T_WD.scale()= in optimize 2 "<<T_WD.scale();
+	// LOG(INFO)<<"step_twd:2 "<<step_twd.transpose();
 
 
 
@@ -507,6 +516,8 @@ float FullSystem::optimize(int mnumOptIts)
 
 	debugPlotTracking();
 
+	// LOG(INFO)<<"T_WD.scale()= in optimize 3 "<<T_WD.scale();
+	// LOG(INFO)<<"step_twd:3 "<<step_twd.transpose();
 
 
 	double lambda = 1e-1;
@@ -515,12 +526,16 @@ float FullSystem::optimize(int mnumOptIts)
 	for(int iteration=0;iteration<mnumOptIts;iteration++)
 	{
 		// solve!
+	// LOG(INFO)<<"step_twd:3.1 "<<step_twd.transpose();
 		backupState(iteration!=0);
+	// LOG(INFO)<<"step_twd:3.2 "<<step_twd.transpose();
 		//solveSystemNew(0);
 		solveSystem(iteration, lambda);
 		double incDirChange = (1e-20 + previousX.dot(ef->lastX)) / (1e-20 + previousX.norm() * ef->lastX.norm());
 		previousX = ef->lastX;
+	// LOG(INFO)<<"step_twd:3.3 "<<step_twd.transpose();
 
+	// LOG(INFO)<<"T_WD.scale()= in optimize 3.1 "<<T_WD.scale();
 
 		if(std::isfinite(incDirChange) && (setting_solverMode & SOLVER_STEPMOMENTUM))
 		{
@@ -531,9 +546,11 @@ float FullSystem::optimize(int mnumOptIts)
 			if(stepsize > 2) stepsize=2;
 			if(stepsize <0.25) stepsize=0.25;
 		}
+	// LOG(INFO)<<"step_twd:4 "<<step_twd.transpose();
 
 		bool canbreak = doStepFromBackup(stepsize,stepsize,stepsize,stepsize,stepsize);
 
+	// LOG(INFO)<<"T_WD.scale()= in optimize 3.2 "<<T_WD.scale();
 
 
 
@@ -589,6 +606,7 @@ float FullSystem::optimize(int mnumOptIts)
 		if(canbreak && iteration >= setting_minOptIterations) break;
 	}
 
+	// LOG(INFO)<<"T_WD.scale()= in optimize 4 "<<T_WD.scale();
 
 // 	LOG(INFO)<<"optimize for end";
 	Vec10 newStateZero = Vec10::Zero();

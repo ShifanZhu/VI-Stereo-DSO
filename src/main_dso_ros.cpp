@@ -530,6 +530,7 @@ std::cout << "8.1" << std::endl;
 	ImageAndExposure* undistImg = undistorter->undistort<unsigned char>(&minImg, 1,0, 1.0f);
 std::cout << "8.2" << std::endl;
 	undistImg->timestamp=img->header.stamp.toSec(); // relay the timestamp to dso
+	pic_time_stamp.push_back(undistImg->timestamp);
 std::cout << "9" << std::endl;
 	fullSystem->addActiveFrame(undistImg, undistImg, frameID);
 std::cout << "10" << std::endl;
