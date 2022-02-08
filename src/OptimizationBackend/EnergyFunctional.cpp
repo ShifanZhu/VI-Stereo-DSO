@@ -46,6 +46,7 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
     H = MatXX::Zero(7+nFrames*15, 7+nFrames*15);
     b = VecX::Zero(7+nFrames*15);
 //     if(nFrames ==3)exit(1);
+	LOG(INFO)<<"H:1 \n"<<H.diagonal().transpose();
     if(nFrames==1)return;
     int count_imu_res = 0;
     double Energy = 0;
@@ -55,6 +56,7 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	//preintegrate
 	IMUPreintegrator IMU_preintegrator;
 	IMU_preintegrator.reset();
+	LOG(INFO)<<"pic_time_stamp.size(): "<<pic_time_stamp.size()<<" frames[i]->data->shell->incoming_id: "<<frames[i]->data->shell->incoming_id;
 	double time_start = pic_time_stamp[frames[i]->data->shell->incoming_id];
 	double time_end = pic_time_stamp[frames[i+1]->data->shell->incoming_id];
 	double dt = time_end-time_start;
@@ -81,8 +83,10 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	Cov_bias.block(3,3,3,3) = AccRandomWalkNoise*dt;
 	Mat66 weight_bias = Mat66::Identity()*imu_weight*imu_weight*Cov_bias.inverse();
 // 	weight_bias *= (bei*bei);
+	LOG(INFO)<<"H:2 \n"<<H.diagonal().transpose();
 	H += J_all2.transpose()*weight_bias*J_all2;
 	b += J_all2.transpose()*weight_bias*r_all2;
+	LOG(INFO)<<"H:3 \n"<<H.diagonal().transpose();
 	
 	if(dt>0.5)continue;
 	
@@ -92,21 +96,36 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	SE3 worldToCam_j2 = Framej->PRE_worldToCam;
 
 	int index;
-	for(int i=0;i<imu_time_stamp.size();++i){
+	for(int i=0;i<imu_time_stamp.size()-1;++i){
 	    if(imu_time_stamp[i]>time_start||fabs(time_start-imu_time_stamp[i])<0.001){
 		index = i;
 		break;
-	    }
+	    }else{
+			index = i;
+		}
 	}
+	LOG(INFO)<<"index ============== B \n"<<index << " " << imu_time_stamp.size() << " " << m_gry.size() << " " << m_acc.size() << " " << std::setprecision(17)<< time_end << " " << time_start << " " << dt;
 	
-	while(1){
+	// while(1){
+	while(index < imu_time_stamp.size()){
 	    double delta_t; 
+		LOG(INFO) << "IMU time stamp " << std::setprecision(17) << imu_time_stamp[index] << " " << imu_time_stamp[index+1] << std::endl; 
 	    if(imu_time_stamp[index+1]<time_end)
+		{
 	      delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
-	    else{
+		  std::cout << "delta t 1 = " << delta_t << std::endl;
+		}
+	    else if(time_end > imu_time_stamp[index]){
 	      delta_t = time_end - imu_time_stamp[index];
-	      if(delta_t<0.000001)break;
+		  std::cout << "delta t 2 = " << delta_t << std::endl;
+	    //   if(delta_t<0.000001)break;
 	    }
+		else{
+			delta_t = 0.5;
+			// delta_t = imu_time_stamp[index] - time_end;
+	   	 	// IMU_preintegrator.update(Vec3::Zero(), Vec3::Zero(), delta_t);
+			// break;
+		}
 	    IMU_preintegrator.update(m_gry[index]-Framei->bias_g, m_acc[index]-Framei->bias_a, delta_t);
 	    if(imu_time_stamp[index+1]>=time_end)
 	      break;
@@ -220,6 +239,7 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	J_imui.block(6,6,3,3) = J_resV_v_i;
 	J_imui.block(6,9,3,3) = J_resV_bg;
 	J_imui.block(6,12,3,3) = J_resV_ba;
+	LOG(INFO)<<"J_imui: \n"<<J_imui;
 	
 	
 	
@@ -232,17 +252,22 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	Weight.block(0,0,3,3) = Cov.block(0,0,3,3);
 	Weight.block(3,3,3,3) = Cov.block(6,6,3,3);
         Weight.block(6,6,3,3) = Cov.block(3,3,3,3);
+	LOG(INFO)<<"Cov: \n"<<Cov;
+	LOG(INFO)<<"Weight1: \n"<<Weight;
 	Mat99 Weight2 = Mat99::Zero();
 	for(int i=0;i<9;++i){
 	    Weight2(i,i) = Weight(i,i);
 	}
 	Weight = Weight2;
+	LOG(INFO)<<"Weight2: \n"<<Weight;
 // 	Mat99 Weight_sqrt = Mat99::Zero();
 // 	for(int j=0;j<9;++j){
 // 	    Weight_sqrt(j,j) = imu_weight*sqrt(1/Weight(j,j));
 // 	}
 // 	LOG(INFO)<<"Weight_sqrt: "<<Weight_sqrt.diagonal().transpose();
 	Weight = imu_weight*imu_weight*Weight.inverse();
+	LOG(INFO)<<"Weight3: \n"<<Weight;
+	LOG(INFO)<<"imu_weight: \n"<<imu_weight;
 
 	Vec9 b_1 = Vec9::Zero();
 	b_1.block(0,0,3,1) = res_p2;
@@ -320,6 +345,8 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	Mat1515 J_r_l_j = Mat1515::Identity();
 	J_r_l_i.block(0,0,6,6) = J_xi_r_l_i;
 	J_r_l_j.block(0,0,6,6) = J_xi_r_l_j;
+	LOG(INFO)<<"J_res_posebi: \n"<<J_res_posebi;
+	LOG(INFO)<<"J_poseb_wd_i: \n"<<J_poseb_wd_i;
 	J_all.block(0,0,9,7) += J_res_posebi*J_poseb_wd_i;
 	J_all.block(0,0,9,7) += J_res_posebj*J_poseb_wd_j;
 	J_all.block(0,0,9,3) = Mat93::Zero();
@@ -328,9 +355,13 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	J_all.block(0,7+(i+1)*15,9,15) += J_imuj*J_relj*J_r_l_j;
 	
 	r_all.block(0,0,9,1) += b_1;
+	LOG(INFO)<<"H:4 \n"<<H.diagonal().transpose();
 	
 	H += (J_all.transpose()*Weight*J_all);
 	b += (J_all.transpose()*Weight*r_all);
+	LOG(INFO)<<"J_all: \n"<<J_all.transpose();
+	LOG(INFO)<<"Weight4: \n"<<Weight;
+	LOG(INFO)<<"H:5 \n"<<H.diagonal().transpose();
 	
 // 	//bias model
 // 	MatXX J_all2 = MatXX::Zero(6, 7+nFrames*15);
@@ -375,6 +406,7 @@ void EnergyFunctional::getIMUHessian(MatXX &H, VecX &b){
 	H.block(0,7+i*15+3,7+nFrames*15,3) *= SCALE_XI_ROT;
 	H.block(7+i*15+3,0,3,7+nFrames*15) *= SCALE_XI_ROT;
 	b.block(7+i*15+3,0,3,1) *= SCALE_XI_ROT;
+	LOG(INFO)<<"H:6 \n"<<H.diagonal().transpose();
     }
 //     if(nFrames ==3)exit(1);
 //     LOG(INFO)<<"H: \n"<<H;
@@ -555,6 +587,7 @@ void EnergyFunctional::setDeltaF(CalibHessian* HCalib)
 // accumulates & shifts L.
 void EnergyFunctional::accumulateAF_MT(MatXX &H, VecX &b, bool MT)
 {
+	LOG(INFO)<<"MT ========= "<<MT;
 	if(MT)
 	{
 		red->reduce(boost::bind(&AccumulatedTopHessianSSE::setZero, accSSE_top_A, nFrames,  _1, _2, _3, _4), 0, 0, 0);
@@ -562,15 +595,26 @@ void EnergyFunctional::accumulateAF_MT(MatXX &H, VecX &b, bool MT)
 				accSSE_top_A, &allPoints, this,  _1, _2, _3, _4), 0, allPoints.size(), 50);
 		accSSE_top_A->stitchDoubleMT(red,H,b,this,false,true);
 		resInA = accSSE_top_A->nres[0];
+	LOG(INFO)<<"resInA ========= "<<resInA;
 	}
 	else
 	{
+		int i = 0;
 		accSSE_top_A->setZero(nFrames);
 		for(EFFrame* f : frames)
 			for(EFPoint* p : f->points)
+			{
+				if(i == 0){
+					LOG(INFO)<<"f->points ========= "<<f->points.size();
+						LOG(INFO) << "p->residualsAll.size = " << p->residualsAll.size();
+					i = 1;
+				}
 				accSSE_top_A->addPoint<0>(p,this);
+			}
 		accSSE_top_A->stitchDoubleMT(red,H,b,this,false,false);
-		resInA = accSSE_top_A->nres[0];
+		resInA = accSSE_top_A->nres[0]+1; // TODO add 1 to let denominator not be zero
+	LOG(INFO)<<"frames.size ========= "<<frames.size();
+	LOG(INFO)<<"resInA ========= "<<resInA;
 	}
 }
 
@@ -930,26 +974,54 @@ void EnergyFunctional::marginalizeFrame_imu(EFFrame* fh){
 	    SE3 worldToCam_j2 = Framej->PRE_worldToCam;
 
 	    int index;
-	    for(int i=0;i<imu_time_stamp.size();++i){
+	    for(int i=0;i<imu_time_stamp.size()-1;++i){
 		if(imu_time_stamp[i]>time_start||fabs(time_start-imu_time_stamp[i])<0.001){
 		    index = i;
 		    break;
+		}else{
+			index = i;
 		}
 	    }
+	LOG(INFO)<<"index ============== C \n"<<index << " " << imu_time_stamp.size() << " " << m_gry.size() << " " << m_acc.size();
 	    
-	    while(1){
-		double delta_t; 
-		if(imu_time_stamp[index+1]<time_end)
-		  delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
-		else{
-		  delta_t = time_end - imu_time_stamp[index];
-		  if(delta_t<0.000001)break;
+	    // while(1){
+	// while(index < imu_time_stamp.size()){
+	// 	double delta_t; 
+	// 	if(imu_time_stamp[index+1]<time_end)
+	// 	  delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
+	// 	else{
+	// 	  delta_t = time_end - imu_time_stamp[index];
+	// 	  if(delta_t<0.000001)break;
+	// 	}
+	// 	IMU_preintegrator.update(m_gry[index]-Framei->bias_g, m_acc[index]-Framei->bias_a, delta_t);
+	// 	if(imu_time_stamp[index+1]>=time_end)
+	// 	  break;
+	// 	index++;
+	//     }
+		while(index < imu_time_stamp.size()){
+	    double delta_t; 
+		LOG(INFO) << "IMU time stamp " << std::setprecision(17) << imu_time_stamp[index] << " " << imu_time_stamp[index+1] << std::endl; 
+	    if(imu_time_stamp[index+1]<time_end)
+		{
+	      delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
+		  std::cout << "delta t 1 = " << delta_t << std::endl;
 		}
-		IMU_preintegrator.update(m_gry[index]-Framei->bias_g, m_acc[index]-Framei->bias_a, delta_t);
-		if(imu_time_stamp[index+1]>=time_end)
-		  break;
-		index++;
+	    else if(time_end > imu_time_stamp[index]){
+	      delta_t = time_end - imu_time_stamp[index];
+		  std::cout << "delta t 2 = " << delta_t << std::endl;
+	    //   if(delta_t<0.000001)break;
 	    }
+		else{
+			delta_t = 0.5;
+			// delta_t = imu_time_stamp[index] - time_end;
+	   	 	// IMU_preintegrator.update(Vec3::Zero(), Vec3::Zero(), delta_t);
+			// break;
+		}
+	    IMU_preintegrator.update(m_gry[index]-Framei->bias_g, m_acc[index]-Framei->bias_a, delta_t);
+	    if(imu_time_stamp[index+1]>=time_end)
+	      break;
+	    index++;
+	}
 	    
 	    Vec3 g_w;
 	    g_w << 0,0,-G_norm;

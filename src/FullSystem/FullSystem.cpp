@@ -1261,15 +1261,15 @@ std::cout << "0" << std::endl;
 	double norm = g_b.norm();
 	g_b = -g_b/norm; // g_b must not be zero
 	Vec3 g_c = T_BC.inverse().rotationMatrix()*g_b;
-	// std::cout << "T_BC.inverse() " << T_BC.inverse().rotationMatrix() << std::endl;
-	// std::cout << "g_b " << g_b << std::endl;
-	// std::cout << "g_c " << g_c << std::endl;
+	std::cout << "T_BC.inverse() " << T_BC.inverse().rotationMatrix() << std::endl;
+	std::cout << "g_b " << g_b << std::endl;
+	std::cout << "g_c " << g_c << std::endl;
 // std::cout << "1" << std::endl;
 	norm = g_c.norm();
 	g_c = g_c/norm; // g_c must not be zero
 	Vec3 n = Sophus::SO3::hat(g_c)*g_w;
 	std::cout << "n1 " << n << std::endl;
-	// std::cout << "Sophus::SO3::hat(g_c) " << Sophus::SO3::hat(g_c).matrix() << std::endl;
+	std::cout << "Sophus::SO3::hat(g_c) " << Sophus::SO3::hat(g_c).matrix() << std::endl;
 
 	norm = n.norm();
 	n = n/norm;
@@ -1279,9 +1279,9 @@ std::cout << "0" << std::endl;
 	// std::cout << "g_w " << g_w << std::endl;
 
 	Mat33 R_wc = cos_theta*Mat33::Identity()+(1-cos_theta)*n*n.transpose()+sin_theta*Sophus::SO3::hat(n);
-	// std::cout << "cos_theta " << cos_theta << std::endl;
-	// std::cout << "n2 " << n << std::endl;
-	// std::cout << "R_wc " << R_wc << std::endl;
+	std::cout << "cos_theta " << cos_theta << std::endl;
+	std::cout << "n2 " << n << std::endl;
+	std::cout << "R_wc " << R_wc << std::endl;
 
 	SE3 T_wc(R_wc,Vec3::Zero());
 	if(gt_path.size() > 0)
@@ -1291,7 +1291,7 @@ std::cout << "0" << std::endl;
 	
 // 	LOG(INFO)<<"first pose: \n"<<T_wc.matrix();
 	fh->shell->camToWorld = T_wc;
-	// std::cout << "T_wc " << T_wc.matrix() << std::endl;
+	std::cout << "T_wc =========== " << T_wc.matrix() << std::endl;
 	fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 
 	Mat33 R_wd = Mat33::Identity();
@@ -1438,7 +1438,7 @@ void FullSystem::mappingLoop()
 					boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 					assert(fh->shell->trackingRef != 0);
 					fh->shell->camToWorld = fh->shell->trackingRef->camToWorld * fh->shell->camToTrackingRef;
-	std::cout << "fh->shell->camToWorld 1" << fh->shell->camToWorld.matrix() << std::endl;
+	std::cout << "fh->shell->camToWorld 1============" << fh->shell->camToWorld.matrix() << std::endl;
 					fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 				}
 				delete fh;
@@ -1484,7 +1484,7 @@ void FullSystem::makeNonKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 		boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 		assert(fh->shell->trackingRef != 0);
 		fh->shell->camToWorld = fh->shell->trackingRef->camToWorld * fh->shell->camToTrackingRef;
-	std::cout << "fh->shell->camToWorld 2" << fh->shell->camToWorld.matrix() << std::endl;
+	std::cout << "fh->shell->camToWorld 2===========" << fh->shell->camToWorld.matrix() << std::endl;
 		fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 	}
 	
@@ -1502,7 +1502,7 @@ void FullSystem::makeKeyFrame( FrameHessian* fh, FrameHessian* fh_right)
 		boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 		assert(fh->shell->trackingRef != 0);
 		fh->shell->camToWorld = fh->shell->trackingRef->camToWorld * fh->shell->camToTrackingRef;
-	// std::cout << "fh->shell->camToWorld 3" << fh->shell->camToWorld.matrix() << std::endl;
+	std::cout << "fh->shell->camToWorld 3===========" << fh->shell->camToWorld.matrix() << std::endl;
 		fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 	}
 // 	LOG(INFO)<<"make keyframe";
@@ -1823,6 +1823,7 @@ void FullSystem::initializeFromInitializer(FrameHessian* newFrame)
 
 		newFrame->shell->camToWorld = firstFrame->shell->camToWorld*firstToNew.inverse();
 		newFrame->shell->aff_g2l = AffLight(0,0);
+	std::cout << "newFrame->shell->camToWorld 3===========" << newFrame->shell->camToWorld.matrix() << std::endl;
 		newFrame->setEvalPT_scaled(newFrame->shell->camToWorld.inverse(),newFrame->shell->aff_g2l);
 		newFrame->shell->trackingRef = firstFrame->shell;
 		newFrame->shell->camToTrackingRef = firstToNew.inverse();

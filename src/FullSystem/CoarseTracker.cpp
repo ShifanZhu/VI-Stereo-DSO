@@ -949,25 +949,55 @@ bool CoarseTracker::trackNewestCoarse(
 	int index;
 // 	LOG(INFO)<<"pic_time_stamp.size(): "<<pic_time_stamp.size();
 // 	LOG(INFO)<<std::fixed<<std::setprecision(9)<<"time_start: "<<time_start<<" time_end: "<<time_start<<" dt: "<<time_end - time_start;
-	for(int i=0;i<imu_time_stamp.size();++i){
+	for(int i=0;i<imu_time_stamp.size()-1;++i){
 	    if(imu_time_stamp[i]>time_start||fabs(time_start-imu_time_stamp[i])<0.001){
 		index = i;
 		break;
-	    }
+	    }else{
+			index = i;
+		}
 	}
+	LOG(INFO)<<"index ============== A \n"<<index << " " << imu_time_stamp.size() << " " << m_gry.size() << " " << m_acc.size() << " " << time_end;
 	
-	while(1){
-	    double delta_t; 
-	    if(imu_time_stamp[index+1]<time_end)
-	      delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
-	    else{
-	      delta_t = time_end - imu_time_stamp[index];
-	      if(delta_t<0.000001)break;
-	    }
-	    IMU_preintegrator.update(m_gry[index]-lastRef->bias_g, m_acc[index]-lastRef->bias_a, delta_t);
-	    if(imu_time_stamp[index+1]>=time_end)
-	      break;
-	    index++;
+	// while(1){
+	// while(index < imu_time_stamp.size()){
+	//     double delta_t; 
+	//     if(imu_time_stamp[index+1]<time_end)
+	//       delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
+	//     else{
+	//       delta_t = time_end - imu_time_stamp[index];
+	//       if(delta_t<0.000001)break;
+	//     }
+	// std::cout<<"index ============== AA \n"<<index << " " << m_gry[index]-lastRef->bias_g << " " << m_acc[index]-lastRef->bias_a << " " << delta_t << std::endl;
+	//     IMU_preintegrator.update(m_gry[index]-lastRef->bias_g, m_acc[index]-lastRef->bias_a, delta_t);
+	//     if(imu_time_stamp[index+1]>=time_end)
+	//       break;
+	//     index++;
+	// }
+
+	while(index < imu_time_stamp.size()){
+		double delta_t; 
+		LOG(INFO) << "IMU time stamp " << std::setprecision(17) << imu_time_stamp[index] << " " << imu_time_stamp[index+1] << std::endl; 
+		if(imu_time_stamp[index+1]<time_end)
+		{
+			delta_t = imu_time_stamp[index+1]-imu_time_stamp[index];
+			std::cout << "delta t 1 = " << delta_t << std::endl;
+		}
+		else if(time_end > imu_time_stamp[index]){
+			delta_t = time_end - imu_time_stamp[index];
+			std::cout << "delta t 2 = " << delta_t << std::endl;
+		//   if(delta_t<0.000001)break;
+		}
+		else{
+			delta_t = 0.5; // TODO
+			// delta_t = imu_time_stamp[index] - time_end;
+			// IMU_preintegrator.update(Vec3::Zero(), Vec3::Zero(), delta_t);
+			// break;
+		}
+		IMU_preintegrator.update(m_gry[index]-lastRef->bias_g, m_acc[index]-lastRef->bias_a, delta_t);
+		if(imu_time_stamp[index+1]>=time_end)
+			break;
+		index++;
 	}
 	
 	std::vector<double> imu_track_w(coarsestLvl,0);

@@ -672,6 +672,10 @@ float FullSystem::optimize(int mnumOptIts)
 
 	debugPlotTracking();
 
+	LOG(INFO)<<"lastEnergy[0]:!!!!!!!!!!! "<<lastEnergy[0];
+	LOG(INFO)<<"patternNum*ef->resInA: "<<patternNum*ef->resInA;
+	// if(ef->resInA < 1) ef->resInA = 1;
+	// if(ef->resInA < 1) return 1;
 	return sqrtf((float)(lastEnergy[0] / (patternNum*ef->resInA)));
 
 }

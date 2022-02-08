@@ -17,7 +17,7 @@ dataname="MH_01_easy"
 	  imu_info=/home/zh/code/VI-Stereo-DSO/calib/euroc/IMU_info.txt \
 	  groundtruth=/home/zh/data/bag/vins/${dataname}/data.csv \
  	  preset=0 mode=1 \
-	  quiet=1 nomt=1 \
+	  quiet=0 nomt=1 \
           savefile_tail=nt_${dataname}\
 	  use_stereo=0\
 	  imu_weight=6 imu_weight_tracker=0.6 stereo_weight=0

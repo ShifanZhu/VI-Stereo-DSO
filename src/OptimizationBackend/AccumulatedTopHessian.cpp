@@ -54,15 +54,27 @@ void AccumulatedTopHessianSSE::addPoint(EFPoint* p, EnergyFunctional const * con
 	{
 		if(mode==0)
 		{
-			if(r->isLinearized || !r->isActive()) continue;
+			if(r->isLinearized || !r->isActive()) 
+			{
+				LOG(INFO) << "r info -= " << r->isLinearized << " " << r->isActive();
+				continue;
+			}
 		}
 		if(mode==1)
 		{
-			if(!r->isLinearized || !r->isActive()) continue;
+			if(!r->isLinearized || !r->isActive()) 
+			{
+				LOG(INFO) << "r info -= " << r->isLinearized << " " << r->isActive();
+				continue;
+			}
 		}
 		if(mode==2)
 		{
-			if(!r->isActive()) continue;
+			if(!r->isActive())
+			{
+				LOG(INFO) << "r info -= " << r->isLinearized << " " << r->isActive();
+				continue;
+			}
 			assert(r->isLinearized);
 		}
 
@@ -135,6 +147,7 @@ void AccumulatedTopHessianSSE::addPoint(EFPoint* p, EnergyFunctional const * con
 		Hcd_acc += rJ->Jpdc[0]*Ji2_Jpdd[0] + rJ->Jpdc[1]*Ji2_Jpdd[1];
 
 		nres[tid]++;
+		std::cout << "nres[tid] ================ " << tid << " "  << nres[tid] << std::endl;
 	}
 
 	if(mode==0)

@@ -64,6 +64,9 @@ void IMUPreintegrator::reset()
 // omega: gyro_measurement - bias_g, last measurement!! not current measurement
 void IMUPreintegrator::update(const Vec3& omega, const Vec3& acc, const double& dt)
 {
+	LOG(INFO)<<"omega: \n"<<omega.transpose();
+	LOG(INFO)<<"acc: \n"<<acc.transpose();
+	LOG(INFO)<<"dt: \n"<<dt;
     double dt2 = dt*dt;
 
     Mat33 dR = Expmap(omega*dt);
@@ -77,6 +80,7 @@ void IMUPreintegrator::update(const Vec3& omega, const Vec3& acc, const double& 
     A.block<3,3>(3,6) = -_delta_R*skew(acc)*dt;
     A.block<3,3>(0,6) = -0.5*_delta_R*skew(acc)*dt2;
     A.block<3,3>(0,3) = I3x3*dt;
+	LOG(INFO)<<"A: \n"<<A;
     Mat93 Bg = Mat93::Zero();
     Bg.block<3,3>(6,0) = Jr*dt;
     Mat93 Ca = Mat93::Zero();
@@ -85,6 +89,7 @@ void IMUPreintegrator::update(const Vec3& omega, const Vec3& acc, const double& 
     _cov_P_V_Phi = A*_cov_P_V_Phi*A.transpose() +
         Bg*GyrCov*Bg.transpose() +
         Ca*AccCov*Ca.transpose();
+	LOG(INFO)<<"_cov_P_V_Phi ========= : \n"<<_cov_P_V_Phi;
 
 
     // jacobian of delta measurements w.r.t bias of gyro/acc
